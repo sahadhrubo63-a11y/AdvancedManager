@@ -3,25 +3,28 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// server ফোল্ডারের ভেতরের .env লোড করার জন্য সুনির্দিষ্ট পাথ
+// লোকাল .env থাকলে লোড করবে; Render-এ Environment Variables সরাসরি কাজ করবে
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// রুট ফোল্ডার (AdvancedManager) এর পাথ
-const rootDir = path.join(__dirname, '..');
+// server.js যে ফোল্ডারে আছে সেখানে index.html থাকলে সেটিই rootDir, নাহলে এক ধাপ ওপরে চেক করবে
+const rootDir = fs.existsSync(path.join(__dirname, 'index.html'))
+    ? __dirname
+    : path.join(__dirname, '..');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // বড় ডাটা বা ছবি হ্যান্ডেল করার জন্য
 
-// রুট ফোল্ডার (AdvancedManager) থেকে স্ট্যাটিক ফাইল সার্ভ করার জন্য
+// রুট ডিরেক্টরি থেকে স্ট্যাটিক ফাইল সার্ভ করার জন্য
 app.use(express.static(rootDir));
 
-// রুট (/) হিট করলে সরাসরি index.html বা user.html দেখাতে চাইলে
+// রুট (/) হিট করলে index.html দেখানোর জন্য
 app.get('/', (req, res) => {
     res.sendFile(path.join(rootDir, 'index.html'));
 });
@@ -66,7 +69,7 @@ const UserSchema = new mongoose.Schema({
     userStatus: { type: String, default: 'Active' },
     lastActiveTime: String,
     softwareViews: { type: Number, default: 1 },
-    
+
     // POS এর নিজস্ব ডাটা
     inventory: { type: Array, default: [] },
     statements: { type: Array, default: [] },
@@ -108,8 +111,8 @@ app.get('/api/users', async (req, res) => {
 app.put('/api/users/:id', async (req, res) => {
     try {
         const updatedUser = await User.findOneAndUpdate(
-            { id: req.params.id }, 
-            req.body, 
+            { id: req.params.id },
+            req.body,
             { new: true }
         );
         res.json({ success: true, updatedUser });
@@ -132,8 +135,8 @@ app.delete('/api/users/:id', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const user = await User.findOne({ 
-            assignedUsername: username, 
+        const user = await User.findOne({
+            assignedUsername: username,
             assignedPassword: password,
             status: 'approved',
             userStatus: 'Active'
@@ -154,7 +157,7 @@ app.put('/api/user-data/:username', async (req, res) => {
     try {
         const updatedUser = await User.findOneAndUpdate(
             { assignedUsername: req.params.username },
-            { 
+            {
                 inventory: req.body.inventory,
                 statements: req.body.statements,
                 vouchers: req.body.vouchers,
